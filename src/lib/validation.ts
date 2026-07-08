@@ -1,0 +1,49 @@
+import { z } from "zod";
+
+export const registerSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Введите корректный email"),
+  password: z.string().min(8, "Пароль должен содержать минимум 8 символов"),
+});
+
+export const loginSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Введите корректный email"),
+  password: z.string().min(1, "Введите пароль"),
+});
+
+export const resumeExperienceEntrySchema = z.object({
+  company: z.string().trim().min(1),
+  role: z.string().trim().min(1),
+  period: z.string().trim().min(1),
+  description: z.string().trim().optional().default(""),
+});
+
+export const resumeEducationEntrySchema = z.object({
+  institution: z.string().trim().min(1),
+  degree: z.string().trim().min(1),
+  period: z.string().trim().min(1),
+});
+
+export const resumeBuilderSchema = z.object({
+  title: z.string().trim().min(1, "Укажите название резюме"),
+  fullName: z.string().trim().min(1, "Укажите ФИО"),
+  contacts: z.object({
+    email: z.string().trim().email().optional().or(z.literal("")),
+    phone: z.string().trim().optional().default(""),
+  }),
+  experience: z.array(resumeExperienceEntrySchema).default([]),
+  education: z.array(resumeEducationEntrySchema).default([]),
+  skills: z.array(z.string().trim().min(1)).default([]),
+});
+
+export const vacancySchema = z.discriminatedUnion("sourceType", [
+  z.object({
+    sourceType: z.literal("text"),
+    rawText: z.string().trim().min(1, "Вставьте текст вакансии"),
+  }),
+  z.object({
+    sourceType: z.literal("url"),
+    rawText: z.string().trim().url("Введите корректную ссылку"),
+  }),
+]);
+
+export type ResumeBuilderInput = z.infer<typeof resumeBuilderSchema>;

@@ -1,0 +1,80 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  resumes   Resume[]
+  vacancies Vacancy[]
+}
+
+model Resume {
+  id             String   @id @default(cuid())
+  userId         String
+  title          String
+  contentJson    String? // JSON: structured resume content (name, experience, education, skills, contacts)
+  sourceFileUrl  String? // relative path under uploads/ for the original uploaded file, if any
+  createdAt      DateTime @default(now())
+  version        Int      @default(1)
+  parentResumeId String? // links an adapted resume back to the resume it was generated from
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent Resume? @relation("ResumeVersions", fields: [parentResumeId], references: [id])
+  children Resume[] @relation("ResumeVersions")
+
+  analyses    Analysis[]
+  adaptations Adaptation[]
+}
+
+model Vacancy {
+  id                       String   @id @default(cuid())
+  userId                   String
+  sourceType               String // "text" | "file" | "url"
+  rawText                  String
+  extractedRequirementsJson String? // JSON: AI-extracted must-have/nice-to-have requirements (Release 2+)
+  createdAt                DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  analyses    Analysis[]
+  adaptations Adaptation[]
+}
+
+model Analysis {
+  id                String   @id @default(cuid())
+  resumeId          String
+  vacancyId         String
+  matchPercent      Int
+  matchedSkillsJson String // JSON array
+  missingSkillsJson String // JSON array
+  createdAt         DateTime @default(now())
+
+  resume  Resume  @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  vacancy Vacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+}
+
+model Adaptation {
+  id                  String   @id @default(cuid())
+  resumeId            String
+  vacancyId           String
+  adaptedContentJson  String // JSON: generated resume content
+  diffJson            String? // JSON: before/after diff
+  atsScore            Int?
+  recommendationsJson String? // JSON array
+  createdAt           DateTime @default(now())
+
+  resume  Resume  @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  vacancy Vacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+}
