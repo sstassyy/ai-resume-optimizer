@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import {
   FileValidationError,
   saveUploadedFile,
   extractTextFromFile,
 } from "@/lib/fileStorage";
+import { parseResumeText } from "@/lib/resumeParser";
 
 export async function POST(request: NextRequest) {
   const session = await getSessionUser(request);
@@ -15,31 +15,17 @@ export async function POST(request: NextRequest) {
 
   const formData = await request.formData().catch(() => null);
   const file = formData?.get("file");
-  const title = formData?.get("title");
 
-  if (!(file instanceof File) || typeof title !== "string" || !title.trim()) {
-    return NextResponse.json(
-      { error: "Нужен файл и название резюме" },
-      { status: 400 }
-    );
+  if (!(file instanceof File)) {
+    return NextResponse.json({ error: "Нужен файл резюме" }, { status: 400 });
   }
 
   try {
     const { relativePath, buffer } = await saveUploadedFile(session.userId, file);
     const extractedText = await extractTextFromFile(file, buffer);
+    const parsed = parseResumeText(extractedText);
 
-    const resume = await db.resume.create({
-      data: {
-        userId: session.userId,
-        title: title.trim(),
-        sourceFileUrl: relativePath,
-        contentJson: extractedText
-          ? JSON.stringify({ rawText: extractedText })
-          : null,
-      },
-    });
-
-    return NextResponse.json(resume, { status: 201 });
+    return NextResponse.json({ sourceFileUrl: relativePath, parsed });
   } catch (err) {
     if (err instanceof FileValidationError) {
       return NextResponse.json({ error: err.message }, { status: 400 });

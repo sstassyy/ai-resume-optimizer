@@ -29,10 +29,12 @@ model Resume {
   createdAt      DateTime @default(now())
   version        Int      @default(1)
   parentResumeId String? // links an adapted resume back to the resume it was generated from
+  vacancyId      String? // set only on adapted versions: the vacancy this version was adapted for
 
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent Resume? @relation("ResumeVersions", fields: [parentResumeId], references: [id])
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Resume?  @relation("ResumeVersions", fields: [parentResumeId], references: [id])
   children Resume[] @relation("ResumeVersions")
+  vacancy Vacancy? @relation(fields: [vacancyId], references: [id])
 
   analyses    Analysis[]
   adaptations Adaptation[]
@@ -49,8 +51,9 @@ model Vacancy {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  analyses    Analysis[]
-  adaptations Adaptation[]
+  analyses       Analysis[]
+  adaptations    Adaptation[]
+  adaptedResumes Resume[]
 }
 
 model Analysis {

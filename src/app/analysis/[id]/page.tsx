@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { AppHeader } from "@/components/AppHeader";
 import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { AdaptButton } from "@/components/AdaptButton";
 import { ANALYSIS_DISCLAIMER } from "@/services/aiService";
 
 export default async function AnalysisPage({
@@ -94,7 +95,9 @@ export default async function AnalysisPage({
           </Card>
         </div>
 
-        <p className="text-xs text-black/40">{ANALYSIS_DISCLAIMER}</p>
+        <p className="mb-6 text-xs text-black/40">{ANALYSIS_DISCLAIMER}</p>
+
+        <AdaptButton resumeId={analysis.resumeId} vacancyId={analysis.vacancyId} />
       </main>
     </div>
   );

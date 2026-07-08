@@ -23,8 +23,7 @@ export const resumeEducationEntrySchema = z.object({
   period: z.string().trim().min(1),
 });
 
-export const resumeBuilderSchema = z.object({
-  title: z.string().trim().min(1, "Укажите название резюме"),
+export const resumeFieldsSchema = z.object({
   fullName: z.string().trim().min(1, "Укажите ФИО"),
   contacts: z.object({
     email: z.string().trim().email().optional().or(z.literal("")),
@@ -33,6 +32,11 @@ export const resumeBuilderSchema = z.object({
   experience: z.array(resumeExperienceEntrySchema).default([]),
   education: z.array(resumeEducationEntrySchema).default([]),
   skills: z.array(z.string().trim().min(1)).default([]),
+});
+
+export const resumeBuilderSchema = resumeFieldsSchema.extend({
+  title: z.string().trim().min(1, "Укажите название резюме"),
+  sourceFileUrl: z.string().trim().min(1).optional(),
 });
 
 export const vacancySchema = z.discriminatedUnion("sourceType", [
@@ -55,5 +59,12 @@ export const analysisCreateSchema = z.object({
   resumeId: z.string().trim().min(1),
   vacancyId: z.string().trim().min(1),
 });
+
+export const adaptationCreateSchema = z.object({
+  resumeId: z.string().trim().min(1),
+  vacancyId: z.string().trim().min(1),
+});
+
+export const adaptationConfirmSchema = resumeFieldsSchema;
 
 export type ResumeBuilderInput = z.infer<typeof resumeBuilderSchema>;

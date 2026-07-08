@@ -32,12 +32,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { title, ...content } = parsed.data;
+  const { title, sourceFileUrl, ...content } = parsed.data;
 
   const resume = await db.resume.create({
     data: {
       userId: session.userId,
       title,
+      sourceFileUrl: sourceFileUrl ?? null,
       contentJson: JSON.stringify(content),
     },
   });

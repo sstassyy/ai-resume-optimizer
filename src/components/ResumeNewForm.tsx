@@ -1,16 +1,23 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useRef, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input, Textarea, Label } from "@/components/ui/Input";
+import { Input, Label } from "@/components/ui/Input";
+import {
+  ResumeFieldsForm,
+  ResumeFieldsHandle,
+  ResumeFieldsValue,
+} from "@/components/ResumeFieldsForm";
 
-type ExperienceEntry = { company: string; role: string; period: string; description: string };
-type EducationEntry = { institution: string; degree: string; period: string };
-
-const emptyExperience: ExperienceEntry = { company: "", role: "", period: "", description: "" };
-const emptyEducation: EducationEntry = { institution: "", degree: "", period: "" };
+const emptyFields: ResumeFieldsValue = {
+  fullName: "",
+  contacts: { email: "", phone: "" },
+  experience: [],
+  education: [],
+  skills: [],
+};
 
 export function ResumeNewForm() {
   const router = useRouter();
@@ -18,39 +25,70 @@ export function ResumeNewForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Upload tab state
+  // Upload tab: pick a file, parse it server-side, then review/edit the
+  // parsed draft using the same fields as the manual builder before saving.
   const [uploadTitle, setUploadTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [uploadStep, setUploadStep] = useState<"select" | "review">("select");
+  const [parsedValue, setParsedValue] = useState<ResumeFieldsValue>(emptyFields);
+  const [sourceFileUrl, setSourceFileUrl] = useState<string | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const uploadFieldsRef = useRef<ResumeFieldsHandle>(null);
 
-  // Builder tab state
   const [title, setTitle] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [skills, setSkills] = useState("");
-  const [experience, setExperience] = useState<ExperienceEntry[]>([emptyExperience]);
-  const [education, setEducation] = useState<EducationEntry[]>([emptyEducation]);
+  const builderFieldsRef = useRef<ResumeFieldsHandle>(null);
 
-  async function onUploadSubmit(e: FormEvent) {
+  async function saveResume(payload: Record<string, unknown>) {
+    const res = await fetch("/api/resumes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Не удалось сохранить резюме");
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
+  }
+
+  async function onParseSubmit(e: FormEvent) {
     e.preventDefault();
     if (!file) {
       setError("Выберите файл резюме");
       return;
     }
     setError(null);
-    setLoading(true);
+    setParsing(true);
     try {
       const formData = new FormData();
-      formData.set("title", uploadTitle || file.name);
       formData.set("file", file);
-      const res = await fetch("/api/resumes/upload", { method: "POST", body: formData });
+      const res = await fetch("/api/resumes/parse", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Не удалось загрузить файл");
+        setError(data.error ?? "Не удалось разобрать файл");
         return;
       }
-      router.push("/dashboard");
-      router.refresh();
+      setParsedValue(data.parsed);
+      setSourceFileUrl(data.sourceFileUrl);
+      setUploadStep("review");
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  async function onUploadReviewSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const value = uploadFieldsRef.current!.getValue();
+      await saveResume({
+        title: uploadTitle || file?.name || "Резюме",
+        ...value,
+        sourceFileUrl,
+      });
     } finally {
       setLoading(false);
     }
@@ -61,28 +99,8 @@ export function ResumeNewForm() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/resumes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          fullName,
-          contacts: { email, phone },
-          experience,
-          education,
-          skills: skills
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Не удалось сохранить резюме");
-        return;
-      }
-      router.push("/dashboard");
-      router.refresh();
+      const value = builderFieldsRef.current!.getValue();
+      await saveResume({ title, ...value });
     } finally {
       setLoading(false);
     }
@@ -112,8 +130,8 @@ export function ResumeNewForm() {
       </div>
 
       <Card>
-        {tab === "upload" ? (
-          <form onSubmit={onUploadSubmit} className="space-y-4">
+        {tab === "upload" && uploadStep === "select" && (
+          <form onSubmit={onParseSubmit} className="space-y-4">
             <div>
               <Label htmlFor="uploadTitle">Название резюме</Label>
               <Input
@@ -132,13 +150,50 @@ export function ResumeNewForm() {
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 className="block w-full text-sm text-brand-dark file:mr-4 file:rounded-lg file:border-0 file:bg-brand-dark/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-brand-dark hover:file:bg-brand-dark/15"
               />
+              <p className="mt-1.5 text-xs text-black/40">
+                Мы попробуем автоматически разобрать резюме по разделам — вы
+                сможете проверить и поправить результат перед сохранением.
+              </p>
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Загружаем…" : "Загрузить резюме"}
+            <Button type="submit" className="w-full" disabled={parsing}>
+              {parsing ? "Разбираем резюме…" : "Разобрать резюме"}
             </Button>
           </form>
-        ) : (
+        )}
+
+        {tab === "upload" && uploadStep === "review" && (
+          <form onSubmit={onUploadReviewSubmit} className="space-y-6">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="uploadTitleReview">Название резюме</Label>
+              <button
+                type="button"
+                onClick={() => setUploadStep("select")}
+                className="text-xs font-medium text-brand-mint hover:underline"
+              >
+                ← Выбрать другой файл
+              </button>
+            </div>
+            <Input
+              id="uploadTitleReview"
+              required
+              value={uploadTitle}
+              onChange={(e) => setUploadTitle(e.target.value)}
+              placeholder="Например, Резюме — Frontend разработчик"
+            />
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Мы разобрали резюме по разделам автоматически — проверьте и
+              поправьте, если что-то распознано неверно, перед сохранением.
+            </p>
+            <ResumeFieldsForm ref={uploadFieldsRef} initialValue={parsedValue} />
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Сохраняем…" : "Сохранить резюме"}
+            </Button>
+          </form>
+        )}
+
+        {tab === "builder" && (
           <form onSubmit={onBuilderSubmit} className="space-y-6">
             <div>
               <Label htmlFor="title">Название резюме</Label>
@@ -150,186 +205,7 @@ export function ResumeNewForm() {
                 placeholder="Например, Резюме — Frontend разработчик"
               />
             </div>
-            <div>
-              <Label htmlFor="fullName">ФИО</Label>
-              <Input
-                id="fullName"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="contactEmail">Email</Label>
-                <Input
-                  id="contactEmail"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="contactPhone">Телефон</Label>
-                <Input
-                  id="contactPhone"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <Label>Опыт работы</Label>
-                <button
-                  type="button"
-                  onClick={() => setExperience([...experience, emptyExperience])}
-                  className="text-xs font-medium text-brand-mint hover:underline"
-                >
-                  + Добавить место работы
-                </button>
-              </div>
-              <div className="space-y-3">
-                {experience.map((entry, i) => (
-                  <div key={i} className="rounded-lg border border-black/10 p-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        placeholder="Компания"
-                        value={entry.company}
-                        onChange={(e) =>
-                          setExperience(
-                            experience.map((it, j) =>
-                              j === i ? { ...it, company: e.target.value } : it
-                            )
-                          )
-                        }
-                      />
-                      <Input
-                        placeholder="Должность"
-                        value={entry.role}
-                        onChange={(e) =>
-                          setExperience(
-                            experience.map((it, j) =>
-                              j === i ? { ...it, role: e.target.value } : it
-                            )
-                          )
-                        }
-                      />
-                    </div>
-                    <Input
-                      className="mt-2"
-                      placeholder="Период (например, 2022–2024)"
-                      value={entry.period}
-                      onChange={(e) =>
-                        setExperience(
-                          experience.map((it, j) =>
-                            j === i ? { ...it, period: e.target.value } : it
-                          )
-                        )
-                      }
-                    />
-                    <Textarea
-                      className="mt-2"
-                      rows={3}
-                      placeholder="Обязанности и достижения"
-                      value={entry.description}
-                      onChange={(e) =>
-                        setExperience(
-                          experience.map((it, j) =>
-                            j === i ? { ...it, description: e.target.value } : it
-                          )
-                        )
-                      }
-                    />
-                    {experience.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => setExperience(experience.filter((_, j) => j !== i))}
-                        className="mt-2 text-xs text-red-600 hover:underline"
-                      >
-                        Удалить
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <Label>Образование</Label>
-                <button
-                  type="button"
-                  onClick={() => setEducation([...education, emptyEducation])}
-                  className="text-xs font-medium text-brand-mint hover:underline"
-                >
-                  + Добавить учебное заведение
-                </button>
-              </div>
-              <div className="space-y-3">
-                {education.map((entry, i) => (
-                  <div key={i} className="rounded-lg border border-black/10 p-3">
-                    <Input
-                      placeholder="Учебное заведение"
-                      value={entry.institution}
-                      onChange={(e) =>
-                        setEducation(
-                          education.map((it, j) =>
-                            j === i ? { ...it, institution: e.target.value } : it
-                          )
-                        )
-                      }
-                    />
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <Input
-                        placeholder="Специальность/степень"
-                        value={entry.degree}
-                        onChange={(e) =>
-                          setEducation(
-                            education.map((it, j) =>
-                              j === i ? { ...it, degree: e.target.value } : it
-                            )
-                          )
-                        }
-                      />
-                      <Input
-                        placeholder="Период"
-                        value={entry.period}
-                        onChange={(e) =>
-                          setEducation(
-                            education.map((it, j) =>
-                              j === i ? { ...it, period: e.target.value } : it
-                            )
-                          )
-                        }
-                      />
-                    </div>
-                    {education.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => setEducation(education.filter((_, j) => j !== i))}
-                        className="mt-2 text-xs text-red-600 hover:underline"
-                      >
-                        Удалить
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="skills">Навыки (через запятую)</Label>
-              <Textarea
-                id="skills"
-                rows={2}
-                value={skills}
-                onChange={(e) => setSkills(e.target.value)}
-                placeholder="React, TypeScript, коммуникация"
-              />
-            </div>
-
+            <ResumeFieldsForm ref={builderFieldsRef} initialValue={emptyFields} />
             {error && <p className="text-sm text-red-600">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Сохраняем…" : "Сохранить резюме"}

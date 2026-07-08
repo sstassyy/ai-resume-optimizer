@@ -61,7 +61,9 @@ export async function extractTextFromFile(
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: buffer });
       const result = await parser.getText();
-      return result.text.trim();
+      // Strip pdf-parse's "-- N of M --" per-page markers — not part of the
+      // document's actual content.
+      return result.text.replace(/^--\s*\d+\s*of\s*\d+\s*--$/gm, "").trim();
     }
     const mammoth = await import("mammoth");
     const result = await mammoth.extractRawText({ buffer });
