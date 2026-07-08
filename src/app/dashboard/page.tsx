@@ -36,7 +36,7 @@ export default async function DashboardPage() {
             <Link href="/resumes/new">
               <Button variant="secondary">+ Резюме</Button>
             </Link>
-            <Link href="/vacancies/new">
+            <Link href="/analyze/new">
               <Button>Новая адаптация</Button>
             </Link>
           </div>

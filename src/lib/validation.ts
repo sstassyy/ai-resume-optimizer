@@ -42,8 +42,18 @@ export const vacancySchema = z.discriminatedUnion("sourceType", [
   }),
   z.object({
     sourceType: z.literal("url"),
-    rawText: z.string().trim().url("Введите корректную ссылку"),
+    rawText: z.string().trim().min(1, "Текст вакансии не может быть пустым"),
+    sourceUrl: z.string().trim().url("Введите корректную ссылку"),
   }),
 ]);
+
+export const vacancyFetchUrlSchema = z.object({
+  url: z.string().trim().url("Введите корректную ссылку"),
+});
+
+export const analysisCreateSchema = z.object({
+  resumeId: z.string().trim().min(1),
+  vacancyId: z.string().trim().min(1),
+});
 
 export type ResumeBuilderInput = z.infer<typeof resumeBuilderSchema>;

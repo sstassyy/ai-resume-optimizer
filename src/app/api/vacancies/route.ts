@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
       userId: session.userId,
       sourceType: parsed.data.sourceType,
       rawText: parsed.data.rawText,
+      sourceUrl: parsed.data.sourceType === "url" ? parsed.data.sourceUrl : null,
     },
   });
 

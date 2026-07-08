@@ -18,17 +18,70 @@ export function VacancyNewForm() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("text");
   const [text, setText] = useState("");
-  const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // URL mode is two-step: enter a link, extract its text server-side, then
+  // review/edit the extracted text before actually saving the vacancy.
+  const [url, setUrl] = useState("");
+  const [urlStep, setUrlStep] = useState<"input" | "preview">("input");
+  const [extractedText, setExtractedText] = useState("");
+  const [extractionFailed, setExtractionFailed] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+
+  async function onExtractUrl() {
+    setError(null);
+    setExtracting(true);
+    try {
+      const res = await fetch("/api/vacancies/fetch-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Не удалось извлечь текст");
+        return;
+      }
+      setExtractedText(data.text);
+      setExtractionFailed(!data.success);
+      setUrlStep("preview");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  async function saveVacancy(body: Record<string, string>) {
+    const res = await fetch("/api/vacancies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Не удалось сохранить вакансию");
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (mode === "url" && urlStep === "input") {
+      if (!url.trim()) {
+        setError("Введите ссылку на вакансию");
+        return;
+      }
+      await onExtractUrl();
+      return;
+    }
+
     setLoading(true);
     try {
-      let res: Response;
       if (mode === "file") {
         if (!file) {
           setError("Выберите файл вакансии");
@@ -36,24 +89,23 @@ export function VacancyNewForm() {
         }
         const formData = new FormData();
         formData.set("file", file);
-        res = await fetch("/api/vacancies/upload", { method: "POST", body: formData });
+        const res = await fetch("/api/vacancies/upload", { method: "POST", body: formData });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "Не удалось сохранить вакансию");
+          return;
+        }
+        router.push("/dashboard");
+        router.refresh();
+      } else if (mode === "url") {
+        if (!extractedText.trim()) {
+          setError("Текст вакансии не может быть пустым");
+          return;
+        }
+        await saveVacancy({ sourceType: "url", rawText: extractedText, sourceUrl: url });
       } else {
-        res = await fetch("/api/vacancies", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sourceType: mode,
-            rawText: mode === "text" ? text : url,
-          }),
-        });
+        await saveVacancy({ sourceType: "text", rawText: text });
       }
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Не удалось сохранить вакансию");
-        return;
-      }
-      router.push("/dashboard");
-      router.refresh();
     } finally {
       setLoading(false);
     }
@@ -91,7 +143,8 @@ export function VacancyNewForm() {
               />
             </div>
           )}
-          {mode === "url" && (
+
+          {mode === "url" && urlStep === "input" && (
             <div>
               <Label htmlFor="vacancyUrl">Ссылка на вакансию</Label>
               <Input
@@ -102,8 +155,42 @@ export function VacancyNewForm() {
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://example.com/job/123"
               />
+              <p className="mt-1.5 text-xs text-black/40">
+                Мы попробуем автоматически извлечь текст вакансии со страницы —
+                вы сможете проверить и поправить его перед сохранением.
+              </p>
             </div>
           )}
+
+          {mode === "url" && urlStep === "preview" && (
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <Label htmlFor="vacancyExtracted">Текст вакансии</Label>
+                <button
+                  type="button"
+                  onClick={() => setUrlStep("input")}
+                  className="text-xs font-medium text-brand-mint hover:underline"
+                >
+                  ← Изменить ссылку
+                </button>
+              </div>
+              {extractionFailed && (
+                <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  Не удалось автоматически извлечь текст со страницы. Вставьте
+                  его вручную ниже.
+                </p>
+              )}
+              <Textarea
+                id="vacancyExtracted"
+                rows={10}
+                required
+                value={extractedText}
+                onChange={(e) => setExtractedText(e.target.value)}
+                placeholder="Вставьте текст вакансии вручную"
+              />
+            </div>
+          )}
+
           {mode === "file" && (
             <div>
               <Label htmlFor="vacancyFile">Файл (PDF или DOCX, до 5MB)</Label>
@@ -116,9 +203,17 @@ export function VacancyNewForm() {
               />
             </div>
           )}
+
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Сохраняем…" : "Сохранить вакансию"}
+
+          <Button type="submit" className="w-full" disabled={loading || extracting}>
+            {mode === "url" && urlStep === "input"
+              ? extracting
+                ? "Извлекаем текст…"
+                : "Извлечь текст"
+              : loading
+                ? "Сохраняем…"
+                : "Сохранить вакансию"}
           </Button>
         </form>
       </Card>
