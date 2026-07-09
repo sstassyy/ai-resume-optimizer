@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { adaptationConfirmSchema } from "@/lib/validation";
+import { scoreAts } from "@/services/aiService";
+import { getOrComputeMatchAnalysis } from "@/lib/matchAnalysis";
 
 export async function POST(
   request: NextRequest,
@@ -46,5 +48,26 @@ export async function POST(
     },
   });
 
-  return NextResponse.json(newResume, { status: 201 });
+  // Score reflects what the user actually saved, not the original AI draft.
+  const matchAnalysis = await getOrComputeMatchAnalysis(
+    adaptation.resume.id,
+    adaptation.vacancy.id,
+    parsed.data,
+    adaptation.vacancy.rawText
+  );
+  const atsResult = await scoreAts(parsed.data, matchAnalysis);
+
+  await db.adaptation.update({
+    where: { id: adaptation.id },
+    data: {
+      atsScore: atsResult.score,
+      recommendationsJson: JSON.stringify({
+        factorScores: atsResult.factorScores,
+        reasons: atsResult.reasons,
+        recommendations: atsResult.recommendations,
+      }),
+    },
+  });
+
+  return NextResponse.json({ resume: newResume, adaptationId: adaptation.id }, { status: 201 });
 }

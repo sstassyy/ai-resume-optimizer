@@ -2,12 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { adaptationCreateSchema } from "@/lib/validation";
-import {
-  extractVacancyRequirements,
-  analyzeVacancyMatch,
-  adaptResume,
-  type MatchAnalysis,
-} from "@/services/aiService";
+import { adaptResume } from "@/services/aiService";
+import { getOrComputeMatchAnalysis } from "@/lib/matchAnalysis";
 
 export async function POST(request: NextRequest) {
   const session = await getSessionUser(request);
@@ -38,23 +34,12 @@ export async function POST(request: NextRequest) {
 
   const resumeContent = resume.contentJson ? JSON.parse(resume.contentJson) : null;
 
-  const latestAnalysis = await db.analysis.findFirst({
-    where: { resumeId: resume.id, vacancyId: vacancy.id },
-    orderBy: { createdAt: "desc" },
-  });
-
-  let matchAnalysis: MatchAnalysis;
-  if (latestAnalysis) {
-    matchAnalysis = {
-      matchPercent: latestAnalysis.matchPercent,
-      categoryScores: JSON.parse(latestAnalysis.categoryScoresJson),
-      matchedSkills: JSON.parse(latestAnalysis.matchedSkillsJson),
-      missingSkills: JSON.parse(latestAnalysis.missingSkillsJson),
-    };
-  } else {
-    const requirements = await extractVacancyRequirements(vacancy.rawText);
-    matchAnalysis = await analyzeVacancyMatch(resumeContent, vacancy.rawText, requirements);
-  }
+  const matchAnalysis = await getOrComputeMatchAnalysis(
+    resume.id,
+    vacancy.id,
+    resumeContent,
+    vacancy.rawText
+  );
 
   const result = await adaptResume(resumeContent, vacancy.rawText, matchAnalysis);
 

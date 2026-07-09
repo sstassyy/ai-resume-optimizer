@@ -45,8 +45,7 @@ export function AdaptationReviewForm({
         setError(data.error ?? "Не удалось сохранить резюме");
         return;
       }
-      router.push("/dashboard");
-      router.refresh();
+      router.push(`/adaptation/${adaptationId}/score`);
     } finally {
       setLoading(false);
     }

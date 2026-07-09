@@ -4,9 +4,14 @@
 // — but shaped exactly like a real call's output (structured content, added
 // keywords, before/after diff) so the frontend won't need to change when the
 // real Anthropic call (`claude-sonnet-4-6` via `/v1/messages`) replaces these
-// internals. ATS scoring (Release 4) is still a stub.
-
-export class AiServiceNotImplementedError extends Error {}
+// internals.
+//
+// `scoreAts` (Release 4) is different: the score itself is a fixed, auditable
+// formula (keyword match + structure checklist + text density) and stays that
+// way permanently, even after the functions above get wired up to a real
+// Claude call — an ATS score should be reproducible and explainable, not an
+// LLM guess. Only the wording of its `reasons`/`recommendations` is a
+// candidate for a future AI upgrade; the `score` number itself is not.
 
 // Non-negotiable instruction injected into every resume-adaptation system
 // prompt: the model must never invent experience, skills or achievements that
@@ -56,8 +61,15 @@ export type AdaptationResult = {
   diff: DiffSection[];
 };
 
+export type AtsFactorScores = {
+  keywords: number; // 0-100, weight 45%
+  structure: number; // 0-100, weight 35%
+  density: number; // 0-100, weight 20%
+};
+
 export type AtsScoreResult = {
   score: number; // 0-100
+  factorScores: AtsFactorScores;
   reasons: string[];
   recommendations: string[];
 };
@@ -245,6 +257,155 @@ export async function adaptResume(
   return { adaptedContent: adapted, addedKeywords, diff };
 }
 
-export async function scoreAts(_adaptedContent: unknown): Promise<AtsScoreResult> {
-  throw new AiServiceNotImplementedError("Not implemented — Release 4");
+const TABLE_ARTIFACT_RE = /\t|\s\|\s|\|{2,}/;
+// Kept in sync with densityScoreFor's low-end cutoff so the structure and
+// density factors never produce contradictory reasons for the same resume.
+const MIN_DESCRIPTION_LENGTH = 40;
+
+function allDescriptions(content: ResumeContent): string[] {
+  if (!content || !Array.isArray(content.experience)) return [];
+  return content.experience.map((e) => e.description ?? "").filter(Boolean);
+}
+
+function structureFactor(content: ResumeContent): { score: number; reasons: string[]; recommendations: string[] } {
+  const reasons: string[] = [];
+  const recommendations: string[] = [];
+  let score = 0;
+
+  if (content?.fullName?.trim()) {
+    score += 15;
+  } else {
+    reasons.push("В резюме не указано ФИО.");
+    recommendations.push("Добавьте ФИО в начало резюме.");
+  }
+
+  if (content?.contacts?.email?.trim()) {
+    score += 10;
+  } else {
+    reasons.push("Не указан email для связи.");
+    recommendations.push("Добавьте контактный email.");
+  }
+
+  if (content?.contacts?.phone?.trim()) {
+    score += 10;
+  } else {
+    reasons.push("Не указан телефон для связи.");
+    recommendations.push("Добавьте контактный телефон.");
+  }
+
+  const experience = content?.experience ?? [];
+  if (experience.length > 0 && experience.every((e) => (e.description ?? "").length >= MIN_DESCRIPTION_LENGTH)) {
+    score += 25;
+    reasons.push("Опыт работы описан с достаточной детализацией.");
+  } else if (experience.length > 0) {
+    score += 10;
+    reasons.push("Описание опыта работы слишком краткое.");
+    recommendations.push(
+      "Расширьте описание обязанностей и достижений для каждого места работы (1–2 предложения)."
+    );
+  } else {
+    reasons.push("В резюме нет ни одного места работы.");
+    recommendations.push("Добавьте хотя бы одно место работы с описанием обязанностей.");
+  }
+
+  if ((content?.education ?? []).length > 0) {
+    score += 15;
+  } else {
+    reasons.push("В резюме не указано образование.");
+    recommendations.push("Добавьте раздел «Образование».");
+  }
+
+  const skills = content?.skills ?? [];
+  if (skills.length >= 3) {
+    score += 15;
+  } else {
+    reasons.push(`Указано мало навыков (${skills.length}).`);
+    recommendations.push("Добавьте больше релевантных навыков (минимум 3).");
+  }
+
+  if (allDescriptions(content).some((d) => TABLE_ARTIFACT_RE.test(d))) {
+    reasons.push("В описании опыта найдены символы табуляции/вертикальные черты — возможно, текст скопирован из таблицы.");
+    recommendations.push(
+      "Уберите символы табуляции и вертикальные черты из описаний — ATS-системы плохо распознают таблицы."
+    );
+  } else {
+    score += 10;
+  }
+
+  return { score: Math.min(100, score), reasons, recommendations };
+}
+
+function densityScoreFor(length: number): number {
+  if (length === 0) return 0;
+  if (length < 40) return Math.round((length / 40) * 50);
+  if (length <= 400) return 100;
+  if (length <= 700) return 80;
+  return 60;
+}
+
+function densityFactor(content: ResumeContent): { score: number; reasons: string[]; recommendations: string[] } {
+  const descriptions = allDescriptions(content);
+  if (descriptions.length === 0) {
+    return {
+      score: 0,
+      reasons: ["Нет описаний опыта работы для оценки плотности текста."],
+      recommendations: [],
+    };
+  }
+
+  const avgLength = descriptions.reduce((sum, d) => sum + d.length, 0) / descriptions.length;
+  const score = Math.round(
+    descriptions.reduce((sum, d) => sum + densityScoreFor(d.length), 0) / descriptions.length
+  );
+
+  const reasons: string[] = [];
+  const recommendations: string[] = [];
+  if (avgLength < 40) {
+    reasons.push(`Средняя длина описания опыта — ${Math.round(avgLength)} символов, это слишком мало.`);
+    recommendations.push("Добавьте больше конкретики в описание обязанностей и достижений.");
+  } else if (avgLength > 700) {
+    reasons.push(`Средняя длина описания опыта — ${Math.round(avgLength)} символов, это может быть избыточно.`);
+    recommendations.push("Сократите описание опыта до ключевых обязанностей и достижений.");
+  } else {
+    reasons.push(`Средняя длина описания опыта — ${Math.round(avgLength)} символов, оптимально для ATS.`);
+  }
+
+  return { score, reasons, recommendations };
+}
+
+// Fixed, auditable formula — see the file-level comment above. Never a real
+// LLM call, by design: an ATS score must be reproducible and explainable.
+export async function scoreAts(
+  resumeContent: unknown,
+  matchAnalysis: MatchAnalysis
+): Promise<AtsScoreResult> {
+  const content = resumeContent as ResumeContent;
+
+  const keywords = matchAnalysis.categoryScores.skills;
+  const structure = structureFactor(content);
+  const density = densityFactor(content);
+
+  const score = Math.round(keywords * 0.45 + structure.score * 0.35 + density.score * 0.2);
+
+  const reasons = [
+    `Совпадение ключевых слов с вакансией: ${matchAnalysis.matchedSkills.length} из ${
+      matchAnalysis.matchedSkills.length + matchAnalysis.missingSkills.length
+    }.`,
+    ...structure.reasons,
+    ...density.reasons,
+  ];
+
+  const recommendations = [...structure.recommendations, ...density.recommendations];
+  if (matchAnalysis.missingSkills.length > 0) {
+    recommendations.push(
+      `Добавьте в резюме навыки, упомянутые в вакансии: ${matchAnalysis.missingSkills.slice(0, 5).join(", ")}.`
+    );
+  }
+
+  return {
+    score,
+    factorScores: { keywords, structure: structure.score, density: density.score },
+    reasons,
+    recommendations,
+  };
 }
