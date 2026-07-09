@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
     "better-sqlite3",
     "jsdom",
     "@mozilla/readability",
+    "@react-pdf/renderer",
   ],
 };
 

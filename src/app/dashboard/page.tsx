@@ -55,12 +55,20 @@ export default async function DashboardPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {resumes.map((resume) => (
-                <Card key={resume.id} className="text-sm">
-                  <p className="font-medium text-brand-dark">{resume.title}</p>
-                  <p className="mt-1 text-black/40">
-                    Версия {resume.version} ·{" "}
-                    {new Date(resume.createdAt).toLocaleDateString("ru-RU")}
-                  </p>
+                <Card key={resume.id} className="flex items-center justify-between gap-3 text-sm">
+                  <div>
+                    <p className="font-medium text-brand-dark">{resume.title}</p>
+                    <p className="mt-1 text-black/40">
+                      Версия {resume.version} ·{" "}
+                      {new Date(resume.createdAt).toLocaleDateString("ru-RU")}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/resumes/${resume.id}/export`}
+                    className="shrink-0 text-xs font-medium text-brand-mint hover:underline"
+                  >
+                    Экспорт
+                  </Link>
                 </Card>
               ))}
             </div>

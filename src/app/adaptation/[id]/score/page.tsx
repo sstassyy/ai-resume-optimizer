@@ -10,13 +10,16 @@ import { ATS_SCORE_DISCLAIMER } from "@/services/aiService";
 
 export default async function AdaptationScorePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ resumeId?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const { id } = await params;
+  const { resumeId } = await searchParams;
   const adaptation = await db.adaptation.findUnique({
     where: { id },
     include: { resume: true, vacancy: true },
@@ -82,9 +85,22 @@ export default async function AdaptationScorePage({
 
         <p className="mb-6 text-xs text-black/40">{ATS_SCORE_DISCLAIMER}</p>
 
-        <Link href="/dashboard">
-          <Button className="w-full">Готово</Button>
-        </Link>
+        {resumeId ? (
+          <div className="flex gap-3">
+            <Link href={`/resumes/${resumeId}/export`} className="flex-1">
+              <Button className="w-full">Экспортировать</Button>
+            </Link>
+            <Link href="/dashboard" className="flex-1">
+              <Button variant="ghost" className="w-full">
+                На дашборд
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <Link href="/dashboard">
+            <Button className="w-full">Готово</Button>
+          </Link>
+        )}
       </main>
     </div>
   );
