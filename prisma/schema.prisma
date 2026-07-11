@@ -30,14 +30,16 @@ model Resume {
   version        Int      @default(1)
   parentResumeId String? // links an adapted resume back to the resume it was generated from
   vacancyId      String? // set only on adapted versions: the vacancy this version was adapted for
+  adaptationId   String? // set only on versions created via confirming an adaptation: the Adaptation draft that produced it (for its ATS score)
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent  Resume?  @relation("ResumeVersions", fields: [parentResumeId], references: [id])
-  children Resume[] @relation("ResumeVersions")
-  vacancy Vacancy? @relation(fields: [vacancyId], references: [id])
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent           Resume?     @relation("ResumeVersions", fields: [parentResumeId], references: [id])
+  children         Resume[]    @relation("ResumeVersions")
+  vacancy          Vacancy?    @relation(fields: [vacancyId], references: [id])
+  sourceAdaptation Adaptation? @relation("ResumeSourceAdaptation", fields: [adaptationId], references: [id])
 
   analyses    Analysis[]
-  adaptations Adaptation[]
+  adaptations Adaptation[] @relation("AdaptationOriginalResume")
 }
 
 model Vacancy {
@@ -80,6 +82,8 @@ model Adaptation {
   recommendationsJson String? // JSON array
   createdAt           DateTime @default(now())
 
-  resume  Resume  @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  resume  Resume  @relation("AdaptationOriginalResume", fields: [resumeId], references: [id], onDelete: Cascade)
   vacancy Vacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+
+  resultResumes Resume[] @relation("ResumeSourceAdaptation")
 }

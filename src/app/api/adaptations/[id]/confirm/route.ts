@@ -45,6 +45,7 @@ export async function POST(
       parentResumeId: adaptation.resume.id,
       version: adaptation.resume.version + 1,
       vacancyId: adaptation.vacancy.id,
+      adaptationId: adaptation.id,
     },
   });
 

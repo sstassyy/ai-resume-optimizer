@@ -119,7 +119,7 @@ export function VacancyNewForm() {
             key={m}
             type="button"
             onClick={() => setMode(m)}
-            className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
+            className={`flex-1 min-h-[44px] rounded-md py-2 text-sm font-medium transition-colors ${
               mode === m ? "bg-white text-brand-dark shadow-sm" : "text-black/50"
             }`}
           >
@@ -169,7 +169,7 @@ export function VacancyNewForm() {
                 <button
                   type="button"
                   onClick={() => setUrlStep("input")}
-                  className="text-xs font-medium text-brand-mint hover:underline"
+                  className="inline-flex min-h-[44px] items-center text-xs font-medium text-brand-mint hover:underline"
                 >
                   ← Изменить ссылку
                 </button>

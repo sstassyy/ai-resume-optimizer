@@ -112,7 +112,7 @@ export function ResumeNewForm() {
         <button
           type="button"
           onClick={() => setTab("upload")}
-          className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
+          className={`flex-1 min-h-[44px] rounded-md py-2 text-sm font-medium transition-colors ${
             tab === "upload" ? "bg-white text-brand-dark shadow-sm" : "text-black/50"
           }`}
         >
@@ -121,7 +121,7 @@ export function ResumeNewForm() {
         <button
           type="button"
           onClick={() => setTab("builder")}
-          className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
+          className={`flex-1 min-h-[44px] rounded-md py-2 text-sm font-medium transition-colors ${
             tab === "builder" ? "bg-white text-brand-dark shadow-sm" : "text-black/50"
           }`}
         >
@@ -169,7 +169,7 @@ export function ResumeNewForm() {
               <button
                 type="button"
                 onClick={() => setUploadStep("select")}
-                className="text-xs font-medium text-brand-mint hover:underline"
+                className="inline-flex min-h-[44px] items-center text-xs font-medium text-brand-mint hover:underline"
               >
                 ← Выбрать другой файл
               </button>

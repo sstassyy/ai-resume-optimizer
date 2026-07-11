@@ -65,7 +65,7 @@ export default async function DashboardPage() {
                   </div>
                   <Link
                     href={`/resumes/${resume.id}/export`}
-                    className="shrink-0 text-xs font-medium text-brand-mint hover:underline"
+                    className="flex min-h-[44px] shrink-0 items-center px-2 text-xs font-medium text-brand-mint hover:underline"
                   >
                     Экспорт
                   </Link>

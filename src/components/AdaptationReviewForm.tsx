@@ -9,9 +9,8 @@ import {
   ResumeFieldsHandle,
   ResumeFieldsValue,
 } from "@/components/ResumeFieldsForm";
-import { ADAPTATION_DISCLAIMER } from "@/services/aiService";
-
-type DiffSection = { label: string; before: string; after: string };
+import { DiffSectionList } from "@/components/DiffSectionList";
+import { ADAPTATION_DISCLAIMER, type DiffSection } from "@/services/aiService";
 
 export function AdaptationReviewForm({
   adaptationId,
@@ -53,24 +52,7 @@ export function AdaptationReviewForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
-      {diffSections.length > 0 && (
-        <Card className="space-y-4">
-          <h2 className="text-sm font-medium text-brand-dark">Было / стало</h2>
-          {diffSections.map((section) => (
-            <div key={section.label} className="space-y-2">
-              <p className="text-xs font-medium text-black/50">{section.label}</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="rounded-lg bg-black/5 p-3 text-xs text-black/60">
-                  {section.before || "—"}
-                </div>
-                <div className="rounded-lg bg-brand-mint/10 p-3 text-xs text-brand-dark">
-                  {section.after || "—"}
-                </div>
-              </div>
-            </div>
-          ))}
-        </Card>
-      )}
+      <DiffSectionList sections={diffSections} />
 
       {addedKeywords.length > 0 && (
         <Card>

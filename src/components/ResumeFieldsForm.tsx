@@ -82,7 +82,7 @@ export const ResumeFieldsForm = forwardRef<ResumeFieldsHandle, { initialValue: R
             <button
               type="button"
               onClick={() => setExperience([...experience, emptyExperience])}
-              className="text-xs font-medium text-brand-mint hover:underline"
+              className="inline-flex min-h-[44px] items-center text-xs font-medium text-brand-mint hover:underline"
             >
               + Добавить место работы
             </button>
@@ -135,7 +135,7 @@ export const ResumeFieldsForm = forwardRef<ResumeFieldsHandle, { initialValue: R
                   <button
                     type="button"
                     onClick={() => setExperience(experience.filter((_, j) => j !== i))}
-                    className="mt-2 text-xs text-red-600 hover:underline"
+                    className="mt-2 inline-flex min-h-[44px] items-center text-xs text-red-600 hover:underline"
                   >
                     Удалить
                   </button>
@@ -151,7 +151,7 @@ export const ResumeFieldsForm = forwardRef<ResumeFieldsHandle, { initialValue: R
             <button
               type="button"
               onClick={() => setEducation([...education, emptyEducation])}
-              className="text-xs font-medium text-brand-mint hover:underline"
+              className="inline-flex min-h-[44px] items-center text-xs font-medium text-brand-mint hover:underline"
             >
               + Добавить учебное заведение
             </button>
@@ -192,7 +192,7 @@ export const ResumeFieldsForm = forwardRef<ResumeFieldsHandle, { initialValue: R
                   <button
                     type="button"
                     onClick={() => setEducation(education.filter((_, j) => j !== i))}
-                    className="mt-2 text-xs text-red-600 hover:underline"
+                    className="mt-2 inline-flex min-h-[44px] items-center text-xs text-red-600 hover:underline"
                   >
                     Удалить
                   </button>
