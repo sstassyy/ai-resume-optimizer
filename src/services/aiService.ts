@@ -61,6 +61,15 @@ export type AdaptationResult = {
   diff: DiffSection[];
 };
 
+// Single source of truth for how much each factor counts toward the final
+// ATS score — shared with the score breakdown UI so the displayed weights
+// can never drift from the actual formula below.
+export const ATS_WEIGHTS = {
+  keywords: 0.45,
+  structure: 0.35,
+  density: 0.2,
+} as const;
+
 export type AtsFactorScores = {
   keywords: number; // 0-100, weight 45%
   structure: number; // 0-100, weight 35%
@@ -385,7 +394,9 @@ export async function scoreAts(
   const structure = structureFactor(content);
   const density = densityFactor(content);
 
-  const score = Math.round(keywords * 0.45 + structure.score * 0.35 + density.score * 0.2);
+  const score = Math.round(
+    keywords * ATS_WEIGHTS.keywords + structure.score * ATS_WEIGHTS.structure + density.score * ATS_WEIGHTS.density
+  );
 
   const reasons = [
     `Совпадение ключевых слов с вакансией: ${matchAnalysis.matchedSkills.length} из ${

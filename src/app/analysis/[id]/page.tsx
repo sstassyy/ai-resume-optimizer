@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { AppHeader } from "@/components/AppHeader";
+import { BackButton } from "@/components/BackButton";
 import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { AdaptButton } from "@/components/AdaptButton";
@@ -41,6 +42,7 @@ export default async function AnalysisPage({
     <div className="flex flex-1 flex-col">
       <AppHeader email={user.email} />
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
+        <BackButton />
         <h1 className="mb-1 text-2xl font-semibold text-brand-dark">
           Результаты анализа
         </h1>

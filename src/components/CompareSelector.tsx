@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { DeleteIconButton } from "@/components/DeleteIconButton";
 
 export type HistoryVersionItem = {
   id: string;
@@ -65,6 +66,10 @@ export function CompareSelector({ versions }: { versions: HistoryVersionItem[] }
           >
             Экспорт
           </Link>
+          <DeleteIconButton
+            confirmMessage={`Удалить версию ${v.version}? Это действие необратимо.`}
+            deleteUrl={`/api/resumes/${v.id}`}
+          />
         </div>
       ))}
       <Button

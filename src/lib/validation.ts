@@ -67,4 +67,13 @@ export const adaptationCreateSchema = z.object({
 
 export const adaptationConfirmSchema = resumeFieldsSchema;
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Введите текущий пароль"),
+  newPassword: z.string().min(8, "Пароль должен содержать минимум 8 символов"),
+});
+
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, "Введите пароль"),
+});
+
 export type ResumeBuilderInput = z.infer<typeof resumeBuilderSchema>;

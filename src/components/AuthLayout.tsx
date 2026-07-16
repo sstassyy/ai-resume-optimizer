@@ -15,7 +15,7 @@ export function AuthLayout({
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <Link href="/" className="text-lg font-semibold text-brand-dark">
-            AI Resume Optimizer
+            Hired.
           </Link>
           <h1 className="mt-4 text-2xl font-semibold text-brand-dark">{title}</h1>
           <p className="mt-1 text-sm text-black/50">{subtitle}</p>

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { AppHeader } from "@/components/AppHeader";
+import { BackButton } from "@/components/BackButton";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { AnalyzeNewForm } from "@/components/AnalyzeNewForm";
@@ -30,6 +31,7 @@ export default async function NewAnalysisPage() {
     <div className="flex flex-1 flex-col">
       <AppHeader email={user.email} />
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
+        <BackButton />
         <h1 className="mb-1 text-2xl font-semibold text-brand-dark">Новая адаптация</h1>
         <p className="mb-6 text-sm text-black/50">
           Выберите резюме и вакансию, чтобы посмотреть, насколько они совпадают

@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth";
 import { adaptationCreateSchema } from "@/lib/validation";
 import { adaptResume } from "@/services/aiService";
 import { getOrComputeMatchAnalysis } from "@/lib/matchAnalysis";
+import { getUsageStatus } from "@/lib/subscription";
 
 export async function POST(request: NextRequest) {
   const session = await getSessionUser(request);
@@ -30,6 +31,17 @@ export async function POST(request: NextRequest) {
   }
   if (!vacancy || vacancy.userId !== session.userId) {
     return NextResponse.json({ error: "Вакансия не найдена" }, { status: 404 });
+  }
+
+  const usage = await getUsageStatus(session.userId);
+  if (usage.isOverLimit) {
+    return NextResponse.json(
+      {
+        error: `Достигнут лимит бесплатного тарифа: ${usage.limit} адаптации в месяц. Обновите тариф, чтобы продолжить.`,
+        code: "LIMIT_REACHED",
+      },
+      { status: 409 }
+    );
   }
 
   const resumeContent = resume.contentJson ? JSON.parse(resume.contentJson) : null;

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Resume Optimizer",
-  description: "Адаптируйте резюме под вакансию с помощью AI и повышайте шансы пройти ATS-фильтры",
+  title: "Hired.",
+  description: "Адаптируйте резюме под вакансию и повышайте шансы пройти ATS-фильтры",
 };
 
 export default function RootLayout({

@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile } from "fs/promises";
+import { mkdir, writeFile, readFile, rm } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 
@@ -42,6 +42,21 @@ export async function saveUploadedFile(
   await writeFile(path.join(userDir, fileName), buffer);
 
   return { relativePath: path.posix.join(userId, fileName), buffer };
+}
+
+// Called on account deletion — Prisma cascades the DB rows, but the actual
+// uploaded files on disk need their own cleanup.
+export async function deleteUserFiles(userId: string): Promise<void> {
+  const userDir = path.join(UPLOADS_ROOT, userId);
+  await rm(userDir, { recursive: true, force: true });
+}
+
+// Called when a single resume is deleted — unlike deleteUserFiles, only
+// removes the one file, not the whole per-user directory.
+export async function deleteStoredFile(relativePath: string): Promise<void> {
+  const resolved = path.join(UPLOADS_ROOT, relativePath);
+  if (!resolved.startsWith(UPLOADS_ROOT)) return;
+  await rm(resolved, { force: true });
 }
 
 export async function readStoredFile(relativePath: string): Promise<Buffer> {

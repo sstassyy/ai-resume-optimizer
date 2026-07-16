@@ -1,4 +1,4 @@
-# AI Resume Optimizer
+# Hired.
 
 AI-powered tool that adapts a resume to a specific job posting and scores it against ATS filters. Built incrementally by release — this repo currently implements **Release 1**: auth, resume creation/upload, vacancy input, and a dashboard.
 
